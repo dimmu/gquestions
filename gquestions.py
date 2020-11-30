@@ -38,6 +38,11 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
 
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+
 ''' 
 Visualizza una barra di caricamento per mostrare l'attesa
 '''
@@ -71,25 +76,23 @@ def initBrowser(headless=False):
 Search on Google and returns the list of PAA questions in SERP.
 """
 def newSearch(browser,query):
-    if lang== "en":
-        browser.get("https://www.google.com?hl=en")
-        searchbox = browser.find_element_by_xpath("//input[@aria-label='Search']")
-    else:
-        browser.get("https://www.google.com?hl=es")
-        searchbox = browser.find_element_by_xpath("//input[@aria-label='Buscar']")
+    browser.get("https://www.google.co.uk")
+    WebDriverWait(browser,10).until(EC.frame_to_be_available_and_switch_to_it((By.CSS_SELECTOR,"iframe[src^='https://consent.google.com']")))
+    WebDriverWait(browser,10).until(EC.element_to_be_clickable((By.XPATH,"//div[@id='introAgreeButton']"))).click()
+    searchbox = browser.find_element_by_xpath("//input[@aria-label='Search']")
     
     searchbox.send_keys(query)
     sleepBar(2)
     tabNTimes()
-    if lang== "en":
-        searchbtn = browser.find_elements_by_xpath("//input[@aria-label='Google Search']")
-    else:
-    	searchbtn = browser.find_elements_by_xpath("//input[@aria-label='Buscar con Google']")
-    try:
-        searchbtn[-1].click()
-    except:
-        searchbtn[0].click()
+    # searchbtn = browser.find_elements_by_xpath("//input[@aria-label='Google Search']")
+    # print('searchbutton:', type(searchbtn), searchbtn)
+    # try:
+    #     searchbtn[-1].click()
+    # except:
+    #     searchbtn[0].click()
+    
     sleepBar(2)
+    
     paa = browser.find_elements_by_xpath("//span/following-sibling::div[contains(@class,'match-mod-horizontal-padding')]")
     hideGBar()
     return paa
@@ -295,30 +298,26 @@ def flatten_csv(data,depth,prettyname):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    args = docopt(usage)
-    print(args)
+    # args = docopt(usage)
+    # print(args)
     MAX_DEPTH = 1
 
-    if args['<depth>']:
-        depth = int(args['<depth>'])
-        if depth > MAX_DEPTH:
-            sys.exit("depth not allowed")
-    else:
-        depth = 0
+    # if args['<depth>']:
+    #     depth = int(args['<depth>'])
+    #     if depth > MAX_DEPTH:
+    #         sys.exit("depth not allowed")
+    # else:
+    #     depth = 0
+    depth = 1
+    lang='en'
 
-    if args['en']:
-        lang = "en"
-    elif args['es']:
-        lang = "es"
+    with open('keywords.txt') as f: 
+        keywords = f.readlines()
+    
+    for keyword in keywords: 
         
-
-
-    if args['<keyword>']:
-        if args['--headless']:
-            browser = initBrowser(True)
-        else:
-            browser = initBrowser()
-        query = args['<keyword>']
+        browser = initBrowser()
+        query = keyword
         start_paa = newSearch(browser,query)
 
         initialSet = {}
@@ -326,7 +325,6 @@ if __name__ == "__main__":
         for q in start_paa:
             initialSet.update({cnt:q})
             cnt +=1
-
         paa_list = []
 
         crawlQuestions(start_paa, paa_list, initialSet,depth)
@@ -343,9 +341,8 @@ if __name__ == "__main__":
                     treeData = treeData,
                 ))
 
-    if args['--csv']:
+    # if args['--csv']:
         if paa_list[0]['children']:
             _path = 'csv/'+prettyOutputName('csv')
             flatten_csv(paa_list, depth, _path)
-
-    browser.close()
+        browser.close()
